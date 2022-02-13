@@ -20,7 +20,7 @@ public class SatispayController {
 
     @GetMapping
     public ResponseEntity<?> getApi(){
-        String response = satispayService.callServer();
+        ResponseEntity<String> response = satispayService.callServer();
         return ResponseEntity.ok().body(response);
     }
 }
