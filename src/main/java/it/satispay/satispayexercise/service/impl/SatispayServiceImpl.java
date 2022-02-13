@@ -19,6 +19,7 @@ import java.security.KeyFactory;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Slf4j
 @Service
@@ -29,7 +30,7 @@ public class SatispayServiceImpl implements SatispayService {
     private final static String KEY_ID = "signature-test-66289";
 
     @Override
-    public ResponseEntity<String> callServer(){
+    public ResponseEntity<String> callServer(HttpMethod httpMethod){
         RestTemplate restTemplate = new RestTemplate();
 
         String rsaPrivateKey = "";
@@ -47,11 +48,14 @@ public class SatispayServiceImpl implements SatispayService {
         }
 
         LocalDateTime dateTime = LocalDateTime.now();
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder
+                .append("(request-target): ").append(httpMethod.toString().toLowerCase(Locale.ROOT)).append(" ").append(PATH).append(System.lineSeparator())
+                .append("host: ").append(HOST).append(System.lineSeparator())
+                .append("date: ").append(dateTime).append(System.lineSeparator())
+                .append("digest: ").append(digestValue);
 
-        String originalString = "(request-target): get /wally-services/protocol/tests/signature\n"+
-                "host: staging.authservices.satispay.com\n" +
-                "date: "+dateTime+"\n" +
-                "digest: "+digestValue;
+        System.out.println(stringBuilder);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Host", HOST);
@@ -60,7 +64,7 @@ public class SatispayServiceImpl implements SatispayService {
 
         String signature = "";
         try {
-            signature = signSHA256RSA(originalString, rsaPrivateKey);
+            signature = signSHA256RSA(stringBuilder.toString(), rsaPrivateKey);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -70,7 +74,7 @@ public class SatispayServiceImpl implements SatispayService {
 
         return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://"+HOST+PATH)
                 .encode()
-                .toUriString(), HttpMethod.GET, requestEntity, String.class);
+                .toUriString(), httpMethod, requestEntity, String.class);
     }
 
     public String readPublicKey(File file) throws Exception {

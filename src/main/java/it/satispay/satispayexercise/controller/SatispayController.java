@@ -2,6 +2,7 @@ package it.satispay.satispayexercise.controller;
 
 import it.satispay.satispayexercise.service.SatispayService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,7 +21,7 @@ public class SatispayController {
 
     @GetMapping
     public ResponseEntity<?> getApi(){
-        ResponseEntity<String> response = satispayService.callServer();
+        ResponseEntity<String> response = satispayService.callServer(HttpMethod.GET);
         return ResponseEntity.ok().body(response);
     }
 }
