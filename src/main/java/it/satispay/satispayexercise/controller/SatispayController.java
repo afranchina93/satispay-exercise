@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,6 +23,12 @@ public class SatispayController {
     @GetMapping
     public ResponseEntity<?> getApi(){
         ResponseEntity<String> response = satispayService.callServer(HttpMethod.GET);
+        return ResponseEntity.ok().body(response);
+    }
+
+    @PostMapping
+    public ResponseEntity<?> postApi(){
+        ResponseEntity<String> response = satispayService.callServer(HttpMethod.POST);
         return ResponseEntity.ok().body(response);
     }
 }

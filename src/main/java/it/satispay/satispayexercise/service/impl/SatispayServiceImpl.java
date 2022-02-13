@@ -30,7 +30,7 @@ public class SatispayServiceImpl implements SatispayService {
     private final static String KEY_ID = "signature-test-66289";
 
     @Override
-    public ResponseEntity<String> callServer(HttpMethod httpMethod){
+    public ResponseEntity<String> callServer(HttpMethod httpMethod) {
         RestTemplate restTemplate = new RestTemplate();
 
         String rsaPrivateKey = "";
@@ -42,7 +42,7 @@ public class SatispayServiceImpl implements SatispayService {
 
         String digestValue = null;
         try {
-            digestValue = "sha256="+readPublicKey(new File("src/main/resources/client-rsa-public-key.txt"));
+            digestValue = "sha256=" + readPublicKey(new File("src/main/resources/client-rsa-public-key.txt"));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -52,14 +52,22 @@ public class SatispayServiceImpl implements SatispayService {
         stringBuilder
                 .append("(request-target): ").append(httpMethod.toString().toLowerCase(Locale.ROOT)).append(" ").append(PATH).append(System.lineSeparator())
                 .append("host: ").append(HOST).append(System.lineSeparator())
-                .append("date: ").append(dateTime).append(System.lineSeparator())
-                .append("digest: ").append(digestValue);
+                .append("date: ").append(dateTime).append(System.lineSeparator());
+        StringBuilder contentType = new StringBuilder(" ");
+        if (!httpMethod.equals(HttpMethod.GET)) {
+            stringBuilder.append("content-type: application/json\n");
+            contentType.append("content-type ");
+        }
+        stringBuilder.append("digest: ").append(digestValue);
 
         System.out.println(stringBuilder);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Host", HOST);
         headers.set("Date", dateTime.toString());
+        if (!httpMethod.equals(HttpMethod.GET)) {
+            headers.set("Content-Type", "application/json");
+        }
         headers.set("Digest", digestValue);
 
         String signature = "";
@@ -68,11 +76,11 @@ public class SatispayServiceImpl implements SatispayService {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        headers.set("Authorization", "Signature keyId=\""+KEY_ID+"\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date digest\", signature=\""+signature+"\"");
+        headers.set("Authorization", "Signature keyId=\"" + KEY_ID + "\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date"+contentType+"digest\", signature=\"" + signature + "\"");
 
         HttpEntity<?> requestEntity = new HttpEntity<>(null, headers);
 
-        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://"+HOST+PATH)
+        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + HOST + PATH)
                 .encode()
                 .toUriString(), httpMethod, requestEntity, String.class);
     }
