@@ -26,7 +26,9 @@ import java.util.Locale;
 public class SatispayServiceImpl implements SatispayService {
 
     private final static String HOST = "staging.authservices.satispay.com";
+
     private final static String PATH = "/wally-services/protocol/tests/signature";
+
     private final static String KEY_ID = "signature-test-66289";
 
     @Override
@@ -37,31 +39,50 @@ public class SatispayServiceImpl implements SatispayService {
         try {
             rsaPrivateKey = readPrivateKey(new File("src/main/resources/client-rsa-private-key.pem"));
         } catch (Exception e) {
-            log.error("Error when retrieve privateKey");
+            log.error("Error retrieving privateKey");
         }
 
         String digestValue = null;
         try {
-            digestValue = "sha256=" + readPublicKey(new File("src/main/resources/client-rsa-public-key.txt"));
+            digestValue = "sha256=" + signSHA256RSA(KEY_ID, rsaPrivateKey);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error calculating privateKey");
+        }
+
+        StringBuilder contentType = new StringBuilder(" ");
+        if (!httpMethod.equals(HttpMethod.GET)) {
+            contentType.append("content-type ");
         }
 
         LocalDateTime dateTime = LocalDateTime.now();
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder
-                .append("(request-target): ").append(httpMethod.toString().toLowerCase(Locale.ROOT)).append(" ").append(PATH).append(System.lineSeparator())
-                .append("host: ").append(HOST).append(System.lineSeparator())
-                .append("date: ").append(dateTime).append(System.lineSeparator());
-        StringBuilder contentType = new StringBuilder(" ");
-        if (!httpMethod.equals(HttpMethod.GET)) {
-            stringBuilder.append("content-type: application/json\n");
-            contentType.append("content-type ");
+
+        StringBuilder input = retrieveInput(httpMethod, digestValue, dateTime);
+
+        String signature = "";
+        try {
+            signature = signSHA256RSA(input.toString(), rsaPrivateKey);
+        } catch (Exception e) {
+            log.error("Error calculating signature");
         }
-        stringBuilder.append("digest: ").append(digestValue);
 
-        System.out.println(stringBuilder);
+        HttpHeaders headers = retrieveHeaders(httpMethod, digestValue, dateTime);
+        headers.set("Authorization", "Signature keyId=\"" + KEY_ID + "\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date" + contentType + "digest\", signature=\"" + signature + "\"");
+        HttpEntity<?> requestEntity;
+        switch (httpMethod) {
+            case POST:
+            case PUT:
+                requestEntity = new HttpEntity<>("{\"hello\": \"world\"}", headers);
+                break;
+            default:
+                requestEntity = new HttpEntity<>(null, headers);
+                break;
+        }
+        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + HOST + PATH)
+                .encode()
+                .toUriString(), httpMethod, requestEntity, String.class);
+    }
 
+    private HttpHeaders retrieveHeaders(HttpMethod httpMethod, String digestValue, LocalDateTime dateTime) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Host", HOST);
         headers.set("Date", dateTime.toString());
@@ -69,43 +90,30 @@ public class SatispayServiceImpl implements SatispayService {
             headers.set("Content-Type", "application/json");
         }
         headers.set("Digest", digestValue);
-
-        String signature = "";
-        try {
-            signature = signSHA256RSA(stringBuilder.toString(), rsaPrivateKey);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        headers.set("Authorization", "Signature keyId=\"" + KEY_ID + "\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date"+contentType+"digest\", signature=\"" + signature + "\"");
-
-        HttpEntity<?> requestEntity;
-        if (httpMethod.equals(HttpMethod.GET)) {
-            requestEntity = new HttpEntity<>(null, headers);
-        }else{
-            requestEntity = new HttpEntity<>("{\"hello\": \"world\"}", headers);
-        }
-
-        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + HOST + PATH)
-                .encode()
-                .toUriString(), httpMethod, requestEntity, String.class);
+        return headers;
     }
 
-    public String readPublicKey(File file) throws Exception {
-        String key = Files.readString(file.toPath(), Charset.defaultCharset());
-        return key.replaceAll("-----END PUBLIC KEY-----", "")
-                .replaceAll("-----BEGIN PUBLIC KEY-----", "")
-                .replaceAll("\n", "");
+    private StringBuilder retrieveInput(HttpMethod httpMethod, String digestValue, LocalDateTime dateTime) {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder
+                .append("(request-target): ").append(httpMethod.toString().toLowerCase(Locale.ROOT)).append(" ").append(PATH).append(System.lineSeparator())
+                .append("host: ").append(HOST).append(System.lineSeparator())
+                .append("date: ").append(dateTime).append(System.lineSeparator());
+        if (!httpMethod.equals(HttpMethod.GET)) {
+            stringBuilder.append("content-type: application/json\n");
+        }
+        stringBuilder.append("digest: ").append(digestValue);
+        return stringBuilder;
     }
 
-    public String readPrivateKey(File file) throws Exception {
+    private String readPrivateKey(File file) throws Exception {
         String key = Files.readString(file.toPath(), Charset.defaultCharset());
         return key.replaceAll("-----END PRIVATE KEY-----", "")
                 .replaceAll("-----BEGIN PRIVATE KEY-----", "")
                 .replaceAll("\n", "");
     }
 
-    // Create base64 encoded signature using SHA256/RSA.
-    private static String signSHA256RSA(String input, String strPk) throws Exception {
+    private String signSHA256RSA(String input, String strPk) throws Exception {
         byte[] b1 = Base64.decodeBase64(strPk);
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(b1);
         KeyFactory kf = KeyFactory.getInstance("RSA");
