@@ -2,8 +2,9 @@ package it.satispay.satispayexercise.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.satispay.satispayexercise.controller.dto.AuthenticationDto;
+import it.satispay.satispayexercise.exception.AuthenticationException;
 import it.satispay.satispayexercise.service.SatispayService;
-import it.satispay.satispayexercise.service.satispay.response.AuthenticationResponse;
+import it.satispay.satispayexercise.service.response.AuthenticationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -26,7 +27,12 @@ public class SatispayController {
 
     @GetMapping
     public ResponseEntity<AuthenticationDto> getApi() {
-        AuthenticationResponse authenticationResponse = satispayService.callServer(HttpMethod.GET);
+        AuthenticationResponse authenticationResponse;
+        try {
+            authenticationResponse = satispayService.callServer(HttpMethod.GET);
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         AuthenticationDto authenticationDto = objectMapper.convertValue(authenticationResponse, AuthenticationDto.class);
         if (authenticationDto.getAuthentication_key().getRole().equals("PUBLIC"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(authenticationDto);
@@ -35,7 +41,12 @@ public class SatispayController {
 
     @PostMapping
     public ResponseEntity<AuthenticationDto> postApi() {
-        AuthenticationResponse authenticationResponse = satispayService.callServer(HttpMethod.POST);
+        AuthenticationResponse authenticationResponse;
+        try {
+            authenticationResponse = satispayService.callServer(HttpMethod.POST);
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         AuthenticationDto authenticationDto = objectMapper.convertValue(authenticationResponse, AuthenticationDto.class);
         if (authenticationDto.getAuthentication_key().getRole().equals("PUBLIC"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(authenticationDto);
@@ -44,7 +55,12 @@ public class SatispayController {
 
     @PutMapping
     public ResponseEntity<AuthenticationDto> putApi() {
-        AuthenticationResponse authenticationResponse = satispayService.callServer(HttpMethod.PUT);
+        AuthenticationResponse authenticationResponse;
+        try {
+            authenticationResponse = satispayService.callServer(HttpMethod.PUT);
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         AuthenticationDto authenticationDto = objectMapper.convertValue(authenticationResponse, AuthenticationDto.class);
         if (authenticationDto.getAuthentication_key().getRole().equals("PUBLIC"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(authenticationDto);
@@ -53,7 +69,12 @@ public class SatispayController {
 
     @DeleteMapping
     public ResponseEntity<AuthenticationDto> deleteApi() {
-        AuthenticationResponse authenticationResponse = satispayService.callServer(HttpMethod.DELETE);
+        AuthenticationResponse authenticationResponse;
+        try {
+            authenticationResponse = satispayService.callServer(HttpMethod.DELETE);
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         AuthenticationDto authenticationDto = objectMapper.convertValue(authenticationResponse, AuthenticationDto.class);
         if (authenticationDto.getAuthentication_key().getRole().equals("PUBLIC"))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(authenticationDto);

@@ -2,8 +2,9 @@ package it.satispay.satispayexercise.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import it.satispay.satispayexercise.exception.AuthenticationException;
 import it.satispay.satispayexercise.service.SatispayService;
-import it.satispay.satispayexercise.service.satispay.response.AuthenticationResponse;
+import it.satispay.satispayexercise.service.response.AuthenticationResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.codec.binary.Base64;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +47,7 @@ public class SatispayServiceImpl implements SatispayService {
     }
 
     @Override
-    public AuthenticationResponse callServer(HttpMethod httpMethod) {
+    public AuthenticationResponse callServer(HttpMethod httpMethod) throws AuthenticationException {
         RestTemplate restTemplate = new RestTemplate();
 
         String rsaPrivateKey = "";
@@ -91,10 +92,12 @@ public class SatispayServiceImpl implements SatispayService {
                 requestEntity = new HttpEntity<>(null, headers);
                 break;
         }
+
         ResponseEntity<String> exchange = restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + host + path)
                 .encode()
                 .toUriString(), httpMethod, requestEntity, String.class);
-        log.info(exchange.toString());
+
+        if (!exchange.getStatusCode().is2xxSuccessful()) throw new AuthenticationException();
 
         AuthenticationResponse authenticationResponse = new AuthenticationResponse();
         try {

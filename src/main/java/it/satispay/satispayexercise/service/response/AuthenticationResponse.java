@@ -1,4 +1,4 @@
-package it.satispay.satispayexercise.service.satispay.response;
+package it.satispay.satispayexercise.service.response;
 
 import lombok.Data;
 
