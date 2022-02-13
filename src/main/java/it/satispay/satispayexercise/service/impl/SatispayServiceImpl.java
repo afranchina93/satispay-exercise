@@ -50,6 +50,7 @@ public class SatispayServiceImpl implements SatispayService {
     public AuthenticationResponse callServer(HttpMethod httpMethod) throws AuthenticationException {
         RestTemplate restTemplate = new RestTemplate();
 
+        //Retrieve privateKey
         String rsaPrivateKey = "";
         try {
             rsaPrivateKey = readPrivateKey(new File("src/main/resources/client-rsa-private-key.pem"));
@@ -57,13 +58,15 @@ public class SatispayServiceImpl implements SatispayService {
             log.error("Error retrieving privateKey: " + e.getMessage());
         }
 
+        //Calculate digest value
         String digestValue = null;
         try {
             digestValue = "sha256=" + signSHA256RSA(keyId, rsaPrivateKey);
         } catch (Exception e) {
-            log.error("Error calculating privateKey " + e.getMessage());
+            log.error("Error calculating digestValue " + e.getMessage());
         }
 
+        //Set content-type if not GET method
         StringBuilder contentType = new StringBuilder(" ");
         if (!httpMethod.equals(HttpMethod.GET)) {
             contentType.append("content-type ");
@@ -71,8 +74,10 @@ public class SatispayServiceImpl implements SatispayService {
 
         LocalDateTime dateTime = LocalDateTime.now();
 
+        //Retrieve Signature string not encrypted
         StringBuilder input = retrieveInput(httpMethod, digestValue, dateTime);
 
+        //Encrypted string
         String signature = "";
         try {
             signature = signSHA256RSA(input.toString(), rsaPrivateKey);
@@ -80,6 +85,7 @@ public class SatispayServiceImpl implements SatispayService {
             log.error("Error calculating signature: " + e.getMessage());
         }
 
+        //Create headers and httpEntity
         HttpHeaders headers = retrieveHeaders(httpMethod, digestValue, dateTime);
         headers.set("Authorization", "Signature keyId=\"" + keyId + "\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date" + contentType + "digest\", signature=\"" + signature + "\"");
         HttpEntity<?> requestEntity;
@@ -93,12 +99,14 @@ public class SatispayServiceImpl implements SatispayService {
                 break;
         }
 
+        //Call Satispay API
         ResponseEntity<String> exchange = restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + host + path)
                 .encode()
                 .toUriString(), httpMethod, requestEntity, String.class);
 
         if (!exchange.getStatusCode().is2xxSuccessful()) throw new AuthenticationException();
 
+        //Retrieve body
         AuthenticationResponse authenticationResponse = new AuthenticationResponse();
         try {
             authenticationResponse = objectMapper.readValue(exchange.getBody(), AuthenticationResponse.class);
