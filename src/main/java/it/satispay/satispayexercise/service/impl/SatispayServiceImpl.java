@@ -78,7 +78,12 @@ public class SatispayServiceImpl implements SatispayService {
         }
         headers.set("Authorization", "Signature keyId=\"" + KEY_ID + "\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date"+contentType+"digest\", signature=\"" + signature + "\"");
 
-        HttpEntity<?> requestEntity = new HttpEntity<>(null, headers);
+        HttpEntity<?> requestEntity;
+        if (httpMethod.equals(HttpMethod.GET)) {
+            requestEntity = new HttpEntity<>(null, headers);
+        }else{
+            requestEntity = new HttpEntity<>("{\"hello\": \"world\"}", headers);
+        }
 
         return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + HOST + PATH)
                 .encode()
