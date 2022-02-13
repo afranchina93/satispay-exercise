@@ -3,6 +3,7 @@ package it.satispay.satispayexercise.service.impl;
 import it.satispay.satispayexercise.service.SatispayService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.codec.binary.Base64;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -25,11 +26,17 @@ import java.util.Locale;
 @Service
 public class SatispayServiceImpl implements SatispayService {
 
-    private final static String HOST = "staging.authservices.satispay.com";
+    private final String host;
 
-    private final static String PATH = "/wally-services/protocol/tests/signature";
+    private final String path;
 
-    private final static String KEY_ID = "signature-test-66289";
+    private final String keyId;
+
+    public SatispayServiceImpl(@Value("${satispay.host}") String host, @Value("${satispay.path}") String path, @Value("${satispay.key-id}") String keyId) {
+        this.host = host;
+        this.path = path;
+        this.keyId = keyId;
+    }
 
     @Override
     public ResponseEntity<String> callServer(HttpMethod httpMethod) {
@@ -39,14 +46,14 @@ public class SatispayServiceImpl implements SatispayService {
         try {
             rsaPrivateKey = readPrivateKey(new File("src/main/resources/client-rsa-private-key.pem"));
         } catch (Exception e) {
-            log.error("Error retrieving privateKey");
+            log.error("Error retrieving privateKey: " + e.getMessage());
         }
 
         String digestValue = null;
         try {
-            digestValue = "sha256=" + signSHA256RSA(KEY_ID, rsaPrivateKey);
+            digestValue = "sha256=" + signSHA256RSA(keyId, rsaPrivateKey);
         } catch (Exception e) {
-            log.error("Error calculating privateKey");
+            log.error("Error calculating privateKey " + e.getMessage());
         }
 
         StringBuilder contentType = new StringBuilder(" ");
@@ -62,11 +69,11 @@ public class SatispayServiceImpl implements SatispayService {
         try {
             signature = signSHA256RSA(input.toString(), rsaPrivateKey);
         } catch (Exception e) {
-            log.error("Error calculating signature");
+            log.error("Error calculating signature: " + e.getMessage());
         }
 
         HttpHeaders headers = retrieveHeaders(httpMethod, digestValue, dateTime);
-        headers.set("Authorization", "Signature keyId=\"" + KEY_ID + "\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date" + contentType + "digest\", signature=\"" + signature + "\"");
+        headers.set("Authorization", "Signature keyId=\"" + keyId + "\", algorithm=\"rsa-sha256\", headers=\"(request-target) host date" + contentType + "digest\", signature=\"" + signature + "\"");
         HttpEntity<?> requestEntity;
         switch (httpMethod) {
             case POST:
@@ -77,14 +84,14 @@ public class SatispayServiceImpl implements SatispayService {
                 requestEntity = new HttpEntity<>(null, headers);
                 break;
         }
-        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + HOST + PATH)
+        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + host + path)
                 .encode()
                 .toUriString(), httpMethod, requestEntity, String.class);
     }
 
     private HttpHeaders retrieveHeaders(HttpMethod httpMethod, String digestValue, LocalDateTime dateTime) {
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Host", HOST);
+        headers.set("Host", host);
         headers.set("Date", dateTime.toString());
         if (!httpMethod.equals(HttpMethod.GET)) {
             headers.set("Content-Type", "application/json");
@@ -96,8 +103,8 @@ public class SatispayServiceImpl implements SatispayService {
     private StringBuilder retrieveInput(HttpMethod httpMethod, String digestValue, LocalDateTime dateTime) {
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder
-                .append("(request-target): ").append(httpMethod.toString().toLowerCase(Locale.ROOT)).append(" ").append(PATH).append(System.lineSeparator())
-                .append("host: ").append(HOST).append(System.lineSeparator())
+                .append("(request-target): ").append(httpMethod.toString().toLowerCase(Locale.ROOT)).append(" ").append(path).append(System.lineSeparator())
+                .append("host: ").append(host).append(System.lineSeparator())
                 .append("date: ").append(dateTime).append(System.lineSeparator());
         if (!httpMethod.equals(HttpMethod.GET)) {
             stringBuilder.append("content-type: application/json\n");
