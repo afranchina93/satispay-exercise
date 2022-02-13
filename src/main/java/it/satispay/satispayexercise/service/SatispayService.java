@@ -1,8 +1,8 @@
 package it.satispay.satispayexercise.service;
 
+import it.satispay.satispayexercise.service.satispay.response.AuthenticationResponse;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 
 public interface SatispayService {
-    ResponseEntity<String> callServer(HttpMethod httpMethod);
+    AuthenticationResponse callServer(HttpMethod httpMethod);
 }

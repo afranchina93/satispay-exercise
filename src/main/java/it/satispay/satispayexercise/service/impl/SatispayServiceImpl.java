@@ -1,8 +1,12 @@
 package it.satispay.satispayexercise.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import it.satispay.satispayexercise.service.SatispayService;
+import it.satispay.satispayexercise.service.satispay.response.AuthenticationResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.codec.binary.Base64;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -32,6 +36,9 @@ public class SatispayServiceImpl implements SatispayService {
 
     private final String keyId;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     public SatispayServiceImpl(@Value("${satispay.host}") String host, @Value("${satispay.path}") String path, @Value("${satispay.key-id}") String keyId) {
         this.host = host;
         this.path = path;
@@ -39,7 +46,7 @@ public class SatispayServiceImpl implements SatispayService {
     }
 
     @Override
-    public ResponseEntity<String> callServer(HttpMethod httpMethod) {
+    public AuthenticationResponse callServer(HttpMethod httpMethod) {
         RestTemplate restTemplate = new RestTemplate();
 
         String rsaPrivateKey = "";
@@ -84,9 +91,18 @@ public class SatispayServiceImpl implements SatispayService {
                 requestEntity = new HttpEntity<>(null, headers);
                 break;
         }
-        return restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + host + path)
+        ResponseEntity<String> exchange = restTemplate.exchange(UriComponentsBuilder.fromHttpUrl("https://" + host + path)
                 .encode()
                 .toUriString(), httpMethod, requestEntity, String.class);
+        log.info(exchange.toString());
+
+        AuthenticationResponse authenticationResponse = new AuthenticationResponse();
+        try {
+            authenticationResponse = objectMapper.readValue(exchange.getBody(), AuthenticationResponse.class);
+        } catch (JsonProcessingException e) {
+            log.error("Error mapping response: " + e.getMessage());
+        }
+        return authenticationResponse;
     }
 
     private HttpHeaders retrieveHeaders(HttpMethod httpMethod, String digestValue, LocalDateTime dateTime) {
